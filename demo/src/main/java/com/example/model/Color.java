@@ -1,0 +1,12 @@
+package com.example.model;
+
+public class Color {
+        private int idColor;
+    private String nombre;
+
+    public int getIdColor() { return idColor; }
+    public void setIdColor(int idColor) { this.idColor = idColor; }
+
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+}
