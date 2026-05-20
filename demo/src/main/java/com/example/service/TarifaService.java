@@ -1,51 +1,67 @@
 package com.example.service;
 
 import com.example.dao.TarifaDAO;
-import com.example.model.Tarifa;
 import com.example.model.Ingreso;
+import com.example.model.Tarifa;
 
 import java.time.Duration;
+import java.util.List;
 
+/**
+ * TarifaService
+ */
 public class TarifaService {
 
     private TarifaDAO dao = new TarifaDAO();
 
-    public void crearTarifa(int tipo, String cobro, double base, int horas, double adicional, int anio) {
-
-        Tarifa t = new Tarifa();
-
-        t.setIdTipo(tipo);
-        t.setTipoCobro(cobro);
-        t.setValorBase(base);
-        t.setHorasBase(horas);
-        t.setValorHoraAdicional(adicional);
-        t.setAnio(anio);
-        t.setEstado("ACTIVA");
-
-        dao.insertar(t);
+    public boolean crear(Tarifa tarifa) {
+        return dao.insertar(tarifa);
     }
 
-    public double calcularTotal(Ingreso i, Tarifa t) {
+    public List<Tarifa> listar() {
+        return dao.listar();
+    }
 
-        long minutos = Duration.between(i.getFechaEntrada(), i.getFechaSalida()).toMinutes();
+    public Tarifa obtenerTarifaVigente(int idTipo, String tipoCobro) {
+        return dao.obtenerTarifaVigente(idTipo, tipoCobro);
+    }
+
+    /**
+     * Calcula total a pagar.
+     */
+    public double calcularTotal(Ingreso ingreso, Tarifa tarifa) {
+
+        if (ingreso.getFechaSalida() == null) {
+            return 0;
+        }
+
+        long minutos = Duration.between(
+                ingreso.getFechaEntrada(),
+                ingreso.getFechaSalida()
+        ).toMinutes();
+
         double horas = minutos / 60.0;
 
-        i.setTiempoHoras(horas);
+        ingreso.setTiempoHoras(horas);
 
-        switch (t.getTipoCobro()) {
+        switch (tarifa.getTipoCobro()) {
 
             case "HORA":
-                if (horas <= t.getHorasBase()) {
-                    return t.getValorBase();
+
+                if (horas <= tarifa.getHorasBase()) {
+                    return tarifa.getValorBase();
                 }
-                double extra = horas - t.getHorasBase();
-                return t.getValorBase() + (extra * t.getValorHoraAdicional());
+
+                double extra = horas - tarifa.getHorasBase();
+
+                return tarifa.getValorBase()
+                        + (extra * tarifa.getValorHoraAdicional());
 
             case "DIA":
-                return t.getValorBase(); // simplificado
+                return tarifa.getValorBase();
 
             case "MES":
-                return t.getValorBase(); // mensualidad fija
+                return tarifa.getValorBase();
 
             default:
                 return 0;

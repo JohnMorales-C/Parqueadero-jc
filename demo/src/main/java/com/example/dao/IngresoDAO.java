@@ -3,97 +3,168 @@ package com.example.dao;
 import com.example.config.ConexionDB;
 import com.example.model.Ingreso;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * DAO para la entidad Ingreso.
+ * Implementa operaciones CRUD usando procedimientos almacenados.
+ */
 public class IngresoDAO {
 
-    public void registrarIngreso(Ingreso i) {
+    /**
+     * Registra el ingreso de un vehículo usando sp_registrar_ingreso.
+     */
+    public boolean registrarIngreso(Ingreso i) {
         try {
             Connection conn = ConexionDB.conectar();
+            if (conn == null) return false;
 
-            String sql = "INSERT INTO ingreso(id_vehiculo, id_espacio, id_usuario, fecha_entrada) VALUES (?,?,?,?)";
+            String sql = "{CALL sp_registrar_ingreso(?,?,?,?)}";
+            CallableStatement cs = conn.prepareCall(sql);
+
+            cs.setInt(1, i.getIdVehiculo());
+            cs.setInt(2, i.getIdEspacio());
+            cs.setInt(3, i.getIdUsuario());
+            cs.setTimestamp(4, Timestamp.valueOf(i.getFechaEntrada()));
+
+            cs.execute();
+
+            cs.close();
+            conn.close();
+
+            System.out.println("Ingreso registrado correctamente");
+            return true;
+
+        } catch (Exception e) {
+            System.out.println("Error al registrar ingreso: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Registra la salida de un vehículo.
+     */
+    public boolean registrarSalida(int idIngreso, LocalDateTime fechaSalida, double total) {
+        try {
+            Connection conn = ConexionDB.conectar();
+            if (conn == null) return false;
+
+            String sql = "{CALL sp_registrar_salida(?,?,?)}";
+            CallableStatement cs = conn.prepareCall(sql);
+
+            cs.setInt(1, idIngreso);
+            cs.setTimestamp(2, Timestamp.valueOf(fechaSalida));
+            cs.setDouble(3, total);
+
+            cs.execute();
+
+            cs.close();
+            conn.close();
+
+            System.out.println("Salida registrada correctamente");
+            return true;
+
+        } catch (Exception e) {
+            System.out.println("Error al registrar salida: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Obtiene el ingreso activo de un vehículo.
+     */
+    public Ingreso obtenerIngresoActivo(int idVehiculo) {
+
+        Ingreso i = null;
+
+        try {
+            Connection conn = ConexionDB.conectar();
+            if (conn == null) return null;
+
+            String sql = "SELECT * FROM ingreso WHERE id_vehiculo = ? AND fecha_salida IS NULL LIMIT 1";
+
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, idVehiculo);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+
+                i = new Ingreso();
+
+                i.setIdIngreso(rs.getInt("id_ingreso"));
+                i.setIdVehiculo(rs.getInt("id_vehiculo"));
+                i.setIdEspacio(rs.getInt("id_espacio"));
+                i.setIdUsuario(rs.getInt("id_usuario"));
+                i.setFechaEntrada(
+                        rs.getTimestamp("fecha_entrada").toLocalDateTime()
+                );
+            }
+
+            rs.close();
+            ps.close();
+            conn.close();
+
+        } catch (Exception e) {
+            System.out.println("Error al obtener ingreso activo: " + e.getMessage());
+        }
+
+        return i;
+    }
+
+    /**
+     * Lista todos los ingresos.
+     */
+    public List<Ingreso> listar() {
+
+        List<Ingreso> ingresos = new ArrayList<>();
+
+        try {
+
+            Connection conn = ConexionDB.conectar();
+            if (conn == null) return ingresos;
+
+            String sql = "SELECT * FROM ingreso";
 
             PreparedStatement ps = conn.prepareStatement(sql);
 
-            ps.setInt(1, i.getIdVehiculo());
-            ps.setInt(2, i.getIdEspacio());
-            ps.setInt(3, i.getIdUsuario());
-            ps.setObject(4, i.getFechaEntrada());
+            ResultSet rs = ps.executeQuery();
 
-            ps.executeUpdate();
+            while (rs.next()) {
+
+                Ingreso i = new Ingreso();
+
+                i.setIdIngreso(rs.getInt("id_ingreso"));
+                i.setIdVehiculo(rs.getInt("id_vehiculo"));
+                i.setIdEspacio(rs.getInt("id_espacio"));
+                i.setIdUsuario(rs.getInt("id_usuario"));
+
+                i.setFechaEntrada(
+                        rs.getTimestamp("fecha_entrada").toLocalDateTime()
+                );
+
+                Timestamp fechaSalida = rs.getTimestamp("fecha_salida");
+
+                if (fechaSalida != null) {
+                    i.setFechaSalida(fechaSalida.toLocalDateTime());
+                }
+
+                i.setTotal(rs.getDouble("total"));
+
+                ingresos.add(i);
+            }
+
+            rs.close();
+            ps.close();
+            conn.close();
 
         } catch (Exception e) {
-            System.out.println("Error IngresoDAO: " + e.getMessage());
-        }
-    }
-
-    public Ingreso obtenerIngresoActivo(int idVehiculo) {
-
-    Ingreso i = null;
-
-    try {
-        Connection conn = ConexionDB.conectar();
-
-        String sql = "SELECT * FROM ingreso WHERE id_vehiculo = ? AND fecha_salida IS NULL LIMIT 1";
-
-        PreparedStatement ps = conn.prepareStatement(sql);
-        ps.setInt(1, idVehiculo);
-
-        ResultSet rs = ps.executeQuery();
-
-        if (rs.next()) {
-            i = new Ingreso();
-            i.setIdIngreso(rs.getInt("id_ingreso"));
-            i.setIdVehiculo(rs.getInt("id_vehiculo"));
-            i.setFechaEntrada(rs.getTimestamp("fecha_entrada").toLocalDateTime());
+            System.out.println("Error al listar ingresos: " + e.getMessage());
         }
 
-    } catch (Exception e) {
-        System.out.println(e.getMessage());
+        return ingresos;
     }
-
-    return i;
-}
-
-public void registrarSalida(Ingreso i) {
-
-    try {
-        Connection conn = ConexionDB.conectar();
-
-        String sql = "UPDATE ingreso SET fecha_salida=?, tiempo_horas=?, total=? WHERE id_ingreso=?";
-
-        PreparedStatement ps = conn.prepareStatement(sql);
-
-        ps.setObject(1, i.getFechaSalida());
-        ps.setDouble(2, i.getTiempoHoras());
-        ps.setDouble(3, i.getTotal());
-        ps.setInt(4, i.getIdIngreso());
-
-        ps.executeUpdate();
-
-    } catch (Exception e) {
-        System.out.println(e.getMessage());
-    }
-}
-
-public void insertar(Ingreso i) {
-
-    try (Connection conn = ConexionDB.conectar();
-         PreparedStatement ps = conn.prepareStatement(
-             "INSERT INTO ingreso(id_vehiculo, id_espacio, id_usuario, fecha_entrada) VALUES (?,?,?,?)"
-         )) {
-
-        ps.setInt(1, i.getIdVehiculo());
-        ps.setInt(2, i.getIdEspacio());
-        ps.setInt(3, i.getIdUsuario());
-        ps.setObject(4, i.getFechaEntrada());
-
-        ps.executeUpdate();
-
-    } catch (Exception e) {
-        System.out.println("Error ingreso: " + e.getMessage());
-    }
-}
 }

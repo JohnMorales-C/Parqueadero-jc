@@ -1,60 +1,57 @@
 package com.example.service;
 
 import com.example.dao.IngresoDAO;
-import com.example.dao.TarifaDAO;
 import com.example.model.Ingreso;
-import com.example.model.Tarifa;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
+/**
+ * IngresoService - Capa de servicio para la entidad Ingreso.
+ * Orquesta la lógica de negocio entre el Controller y el DAO.
+ */
 public class IngresoService {
 
     private IngresoDAO ingresoDAO = new IngresoDAO();
-    private TarifaDAO tarifaDAO = new TarifaDAO();
-    private TarifaService tarifaService = new TarifaService();
 
-public void registrarSalida(int idVehiculo, int idTipo) {
-
-    // 1. Buscar ingreso activo
-    Ingreso i = ingresoDAO.obtenerIngresoActivo(idVehiculo);
-
-    if (i == null) {
-        System.out.println("No hay ingreso activo");
-        return;
+    /**
+     * Registra un nuevo ingreso.
+     *
+     * @param ingreso Ingreso a registrar
+     * @return true si la operación fue exitosa
+     */
+    public boolean registrarIngreso(Ingreso ingreso) {
+        return ingresoDAO.registrarIngreso(ingreso);
     }
 
-    // 2. Fecha salida
-    i.setFechaSalida(LocalDateTime.now());
-
-    // 3. Obtener tarifa vigente (por horas normalmente)
-    Tarifa t = tarifaDAO.obtenerTarifaVigente(idTipo, "HORA");
-
-    if (t == null) {
-        System.out.println("No hay tarifa activa configurada");
-        return;
+    /**
+     * Registra la salida de un vehículo.
+     *
+     * @param idIngreso ID del ingreso
+     * @param fechaSalida Fecha y hora de salida
+     * @param total Total a pagar
+     * @return true si la operación fue exitosa
+     */
+    public boolean registrarSalida(int idIngreso, LocalDateTime fechaSalida, double total) {
+        return ingresoDAO.registrarSalida(idIngreso, fechaSalida, total);
     }
 
-    // 4. Calcular total
-    double total = tarifaService.calcularTotal(i, t);
-    i.setTotal(total);
+    /**
+     * Lista todos los ingresos.
+     *
+     * @return Lista de ingresos
+     */
+    public List<Ingreso> listarIngresos() {
+        return ingresoDAO.listar();
+    }
 
-    // 5. Guardar salida
-    ingresoDAO.registrarSalida(i);
-
-    System.out.println("Salida registrada. Total: " + total);
-}
-
-public void registrarIngreso(int idVehiculo, int idEspacio, int idUsuario) {
-
-    Ingreso i = new Ingreso();
-
-    i.setIdVehiculo(idVehiculo);
-    i.setIdEspacio(idEspacio);
-    i.setIdUsuario(idUsuario);
-    i.setFechaEntrada(LocalDateTime.now());
-
-    ingresoDAO.insertar(i);
-
-    System.out.println("Ingreso registrado correctamente");
-}
+    /**
+     * Obtiene un ingreso activo por ID de vehículo.
+     *
+     * @param idVehiculo ID del vehículo
+     * @return Ingreso activo o null
+     */
+    public Ingreso obtenerIngresoActivo(int idVehiculo) {
+        return ingresoDAO.obtenerIngresoActivo(idVehiculo);
+    }
 }

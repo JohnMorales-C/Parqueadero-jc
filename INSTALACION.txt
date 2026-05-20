@@ -1,0 +1,230 @@
+INSTRUCCIONES DE INSTALACIÓN Y CONFIGURACIÓN
+==============================================
+
+## PASOS PARA EJECUTAR EL SISTEMA DE PARQUEADERO
+
+### 1. CREAR LA BASE DE DATOS EN MYSQL
+
+a) Abrir MySQL desde línea de comandos o MySQL Workbench
+b) Ejecutar el script de crear la base de datos (si no existe):
+
+```sql
+CREATE DATABASE parqueadero_jc;
+USE parqueadero_jc;
+```
+
+c) Copiar TODO el contenido del archivo STORED_PROCEDURES.sql
+d) Pegarlo en MySQL Workbench o línea de comandos y ejecutar
+
+Esto creará:
+- Todas las tablas necesarias (ya deben existir)
+- Todos los procedimientos almacenados (sp_insertar_cliente, etc.)
+
+### 2. CONFIGURAR CREDENCIALES DE BASE DE DATOS
+
+Editar el archivo: demo/src/main/java/com/example/config/ConexionDB.java
+
+Cambiar estas líneas según tu configuración MySQL:
+```java
+private static final String URL = "jdbc:mysql://localhost:3306/parqueadero_jc";
+private static final String USER = "root";                    // Tu usuario MySQL
+private static final String PASSWORD = "JohnMorales12";      // Tu contraseña MySQL
+```
+
+### 3. COMPILAR EL PROYECTO CON MAVEN
+
+En la terminal, navegar a la carpeta 'demo':
+```bash
+cd demo
+mvn clean compile
+```
+
+Si hay errores de dependencias, ejecutar:
+```bash
+mvn clean install
+```
+
+### 4. EJECUTAR LA APLICACIÓN
+
+Opción A - Desde Maven:
+```bash
+mvn exec:java -Dexec.mainClass="com.example.view.Main"
+```
+
+Opción B - Desde el IDE (Eclipse, IntelliJ, VS Code):
+1. Abrir el proyecto en el IDE
+2. Navegar a: demo/src/main/java/com/example/view/Main.java
+3. Click derecho → Run As → Java Application
+
+### 5. USAR LA APLICACIÓN
+
+La aplicación abrirá una ventana principal con:
+- Menú lateral izquierdo con botones: CLIENTES, VEHÍCULOS, INGRESOS, TARIFAS, SALIR
+- Panel central que cambia según la opción seleccionada
+- NO abre múltiples ventanas, todo está en una sola
+
+## ESTRUCTURA DEL CÓDIGO
+
+```
+demo/src/main/java/com/example/
+├── config/
+│   └── ConexionDB.java          → Conexión MySQL con DriverManager
+├── model/
+│   ├── Cliente.java
+│   ├── Vehiculo.java
+│   ├── Ingreso.java
+│   ├── Tarifa.java
+│   └── [otros modelos]
+├── dao/
+│   ├── ClienteDAO.java          → Usa CallableStatement para sp_insertar_cliente, etc.
+│   ├── VehiculoDAO.java         → Usa CallableStatement para sp_insertar_vehiculo, etc.
+│   ├── IngresoDAO.java          → Usa CallableStatement para sp_registrar_ingreso, etc.
+│   ├── TarifaDAO.java           → Usa CallableStatement para sp_insertar_tarifa
+│   └── [DAOs de catálogos]
+├── service/
+│   ├── ClienteService.java      → Lógica de negocio de clientes
+│   ├── VehiculoService.java     → Lógica de negocio de vehículos
+│   ├── IngresoService.java      → Lógica de negocio de ingresos
+│   ├── TarifaService.java       → Lógica de negocio de tarifas
+│   └── [servicios de catálogos]
+├── controller/
+│   ├── ClienteController.java   → Controlador de clientes
+│   ├── VehiculoController.java  → Controlador de vehículos
+│   ├── IngresoController.java   → Controlador de ingresos
+│   └── TarifaController.java    → Controlador de tarifas
+└── view/
+    ├── Main.java                → Punto de entrada
+    ├── MainView.java            → Ventana principal (ÚNICA)
+    ├── ClienteView.java         → JPanel de clientes
+    ├── VehiculoView.java        → JPanel de vehículos
+    ├── IngresoView.java         → JPanel de ingresos
+    └── TarifaView.java          → JPanel de tarifas
+```
+
+## PROCEDIMIENTOS ALMACENADOS IMPLEMENTADOS
+
+### CLIENTE (4 procedures)
+✅ sp_insertar_cliente(nombre, documento, telefono, correo)
+✅ sp_listar_clientes()
+✅ sp_actualizar_cliente(id, nombre, documento, telefono, correo)
+✅ sp_eliminar_cliente(id)
+
+### VEHÍCULO (2 procedures)
+✅ sp_insertar_vehiculo(placa, id_cliente, id_tipo, id_marca, id_color, id_estado)
+✅ sp_listar_vehiculos()
+
+### INGRESO (2 procedures)
+✅ sp_registrar_ingreso(id_vehiculo, id_espacio, id_usuario, fecha)
+✅ sp_registrar_salida(id_ingreso, fecha_salida, total)
+
+### TARIFA (1 procedure)
+✅ sp_insertar_tarifa(codigo, anio, id_tipo, tipo_cobro, horas_base, valor_base, valor_adicional, estado, descripcion)
+
+## CALLABLESTATEMENT IMPLEMENTATION
+
+Todos los DAOs usan CallableStatement de esta forma:
+
+```java
+// EJEMPLO: Insertar cliente
+String sql = "{CALL sp_insertar_cliente(?,?,?,?)}";
+CallableStatement cs = conn.prepareCall(sql);
+cs.setString(1, cliente.getNombre());
+cs.setString(2, cliente.getDocumento());
+cs.setString(3, cliente.getTelefono());
+cs.setString(4, cliente.getCorreo());
+cs.execute();
+```
+
+## ARQUITECTURA MVC
+
+Flujo de datos:
+```
+View (JPanel) 
+    ↓
+Controller (recibe eventos, llama servicios)
+    ↓
+Service (lógica de negocio)
+    ↓
+DAO (acceso a BD con CallableStatement)
+    ↓
+MySQL (procedimientos almacenados)
+```
+
+## INTERFAZ GRÁFICA
+
+Estructura de MainView:
+- Panel lateral (izquierda): Botones de navegación
+- Panel central (derecha): Contenido dinámico que cambia según botón seleccionado
+
+No abre nuevas ventanas (JFrame), todo es en una sola ventana.
+
+## TROUBLESHOOTING
+
+### Error: "No database selected"
+Solución: Ejecutar CREATE DATABASE y USE parqueadero_jc
+
+### Error: "Cannot call CallableStatement..."
+Solución: Verificar que los procedimientos estén creados en la BD
+Ejecutar nuevamente el script STORED_PROCEDURES.sql
+
+### Error: "Connection refused"
+Solución: 
+- Verificar que MySQL está ejecutándose
+- Verificar HOST, USER, PASSWORD en ConexionDB.java
+
+### Error: "Driver not found"
+Solución: Ejecutar mvn clean install para descargar dependencias
+
+## FUNCIONALIDADES
+
+CLIENTES ✅
+- Registrar nuevo cliente
+- Listar todos los clientes
+- Actualizar datos de cliente
+- Eliminar cliente
+- Tabla interactiva
+
+VEHÍCULOS ✅
+- Registrar nuevo vehículo con ComboBox para cliente, tipo, marca, color, estado
+- Listar vehículos con datos relacionados
+- Actualizar vehículo
+- Eliminar vehículo
+- Tabla interactiva
+
+INGRESOS ✅
+- Registrar ingreso de vehículo
+- Registrar salida de vehículo
+- Listar ingresos/salidas
+- Cálculo automático de tiempo
+- Cálculo de total a pagar
+
+TARIFAS ✅
+- Crear tarifa con código, año, tipo, cobro, valores
+- Listar tarifas vigentes
+- Campos validados
+- Spinner para valores numéricos
+
+## DEPENDENCIAS
+
+Maven descargará automáticamente:
+- mysql-connector-j:9.7.0 (JDBC Driver para MySQL)
+- Librerías estándar de Java (Swing, JDBC)
+
+## NOTAS IMPORTANTES
+
+1. El proyecto NO usa Hibernate, JPA o Spring Boot
+2. Todo es JDBC puro con CallableStatement
+3. Toda la lógica de BD está en procedimientos almacenados
+4. La interfaz gráfica usa Swing (nativo de Java)
+5. Arquitectura completamente modular y profesional
+6. Documentación completa en JavaDoc
+7. Una única ventana principal, no abre JFrame separados
+
+## CONTACTO
+
+Para dudas sobre la arquitectura o implementation, ver:
+- README.md - Documentación completa
+- STORED_PROCEDURES.sql - Detalles de procedures
+- Comentarios en el código (JavaDoc)
+
+¡El sistema está listo para usar!
